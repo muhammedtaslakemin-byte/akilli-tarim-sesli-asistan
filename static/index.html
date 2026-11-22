@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Akıllı Tarım Sesli Asistanı</title>
+  <style>
+    :root {
+      --primary: #2e7d32;
+      --primary-dark: #1b5e20;
+      --accent: #fbc02d;
+      --bg: #f4f6f8;
+      --card-bg: #ffffff;
+      --text: #212121;
+      --text-muted: #666666;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 20px; }
+    .container { max-width: 900px; margin: 0 auto; }
+    header { background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; padding: 25px; border-radius: 14px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+    header h1 { font-size: 24px; margin-bottom: 6px; }
+    header p { opacity: 0.9; font-size: 14px; }
+    .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+    @media(max-width: 768px) { .grid { grid-template-columns: 1fr; } }
+    .card { background: var(--card-bg); padding: 20px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 20px; }
+    .card h2 { font-size: 18px; margin-bottom: 15px; color: var(--primary-dark); display: flex; align-items: center; gap: 8px; }
+    .chat-box { height: 350px; overflow-y: auto; border: 1px solid #e0e0e0; border-radius: 8px; padding: 12px; background: #fafafa; display: flex; flex-direction: column; gap: 10px; margin-bottom: 12px; }
+    .msg { padding: 10px 14px; border-radius: 10px; max-width: 80%; font-size: 14px; line-height: 1.4; }
+    .msg.user { align-self: flex-end; background: #e8f5e9; color: #1b5e20; border-bottom-right-radius: 2px; }
+    .msg.bot { align-self: flex-start; background: #ffffff; border: 1px solid #e0e0e0; color: #333; border-bottom-left-radius: 2px; }
+    .msg-badge { display: inline-block; font-size: 11px; background: #e0f2f1; color: #00695c; padding: 2px 6px; border-radius: 4px; margin-top: 4px; }
+    .input-row { display: flex; gap: 8px; }
+    input[type="text"] { flex: 1; padding: 12px 14px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; outline: none; }
+    input[type="text"]:focus { border-color: var(--primary); }
+    button { background: var(--primary); color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background 0.2s; }
+    button:hover { background: var(--primary-dark); }
+    button.mic-btn { background: #d32f2f; }
+    button.mic-btn.active { background: #b71c1c; animation: pulse 1.2s infinite; }
+    @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+    .status-badge { display: inline-block; padding: 4px 8px; border-radius: 6px; font-size: 12px; font-weight: bold; background: #c8e6c9; color: #2e7d32; }
+    .stat-item { margin-bottom: 10px; font-size: 13px; line-height: 1.5; }
+    .tarla-item { padding: 8px 10px; border-left: 3px solid var(--primary); background: #f9f9f9; margin-bottom: 6px; border-radius: 4px; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🌾 Akıllı Tarım Sesli Asistanı</h1>
+      <p>Google Gemini AI & Canlı Veri Destekli Çiftçi Danışmanı</p>
+    </header>
+
+    <div class="grid">
+      <div>
+        <div class="card">
+          <h2>💬 Asistan Sohbet Ekranı</h2>
+          <div class="chat-box" id="chatBox">
+            <div class="msg bot">
+              Merhaba ağam! Ben Akıllı Tarım Asistanın. Borsa fiyatlarını, hava durumunu sorabilir veya yeni tarla ekleyebilirsin.
+            </div>
+          </div>
+          <div class="input-row">
+            <input type="text" id="userInput" placeholder="Sorunuzu buraya yazın veya mikrofona tıklayın..." onkeypress="handleKey(event)">
+            <button class="mic-btn" id="micBtn" onclick="toggleMic()" title="Sesli Konuş">🎤</button>
+            <button onclick="sendMessage()">Gönder</button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card">
+          <h2>📊 Sistem Durumu</h2>
+          <div class="stat-item"><strong>Servis:</strong> <span class="status-badge" id="servisDurum">Aktif</span></div>
+          <div class="stat-item"><strong>Çiftçi ID:</strong> <span id="ciftciId">205</span></div>
+          <div class="stat-item" id="havaBilgi"><strong>Hava Durumu:</strong> Yükleniyor...</div>
+          <div class="stat-item"><strong>Piyasa:</strong> Pamuk 43.50 TL | Buğday 9.20 TL</div>
+        </div>
+
+        <div class="card">
+          <h2>🚜 Kayıtlı Tarlalarım</h2>
+          <div id="tarlaListesi">Yükleniyor...</div>
+          <button style="width:100%; margin-top:8px;" onclick="loadTarlalar()">Listeyi Yenile</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const CIFTCI_ID = "205";
+    let isListening = false;
+    let recognition = null;
+
+    if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+      const SpeechClass = window.SpeechRecognition || window.webkitSpeechRecognition;
+      recognition = new SpeechClass();
+      recognition.lang = 'tr-TR';
+      recognition.continuous = false;
+      recognition.interimResults = false;
+
+      recognition.onresult = (e) => {
+        const text = e.results[0][0].transcript;
+        document.getElementById('userInput').value = text;
+        sendMessage();
+      };
+      recognition.onend = () => {
+        isListening = false;
+        document.getElementById('micBtn').classList.remove('active');
+      };
+    }
+
+    function toggleMic() {
+      if (!recognition) {
+        alert("Tarayıcınız ses tanıma özelliğini desteklemiyor. Lütfen Chrome veya Edge kullanın.");
+        return;
+      }
+      if (isListening) {
+        recognition.stop();
+      } else {
+        recognition.start();
+        isListening = true;
+        document.getElementById('micBtn').classList.add('active');
+      }
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter') sendMessage();
+    }
+
+    async function sendMessage() {
+      const input = document.getElementById('userInput');
+      const text = input.value.trim();
+      if (!text) return;
+
+      appendMsg(text, 'user');
+      input.value = '';
+
+      try {
+        const res = await fetch('/asistan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ kullanici_mesaji: text, kullanici_id: CIFTCI_ID })
+        });
+        const data = await res.json();
+        appendMsg(data.asistan_cevabi, 'bot', data.uygulama_emri);
+        speak(data.asistan_cevabi);
+        if (data.uygulama_emri === 'islem_tarla_ekle') {
+          setTimeout(loadTarlalar, 1000);
+        }
+      } catch (err) {
+        appendMsg("Sunucuya bağlanılamadı ağam. Lütfen ana servisi kontrol edin.", 'bot');
+      }
+    }
+
+    function appendMsg(text, sender, cmd = null) {
+      const box = document.getElementById('chatBox');
+      const div = document.createElement('div');
+      div.className = `msg ${sender}`;
+      div.innerText = text;
+      if (cmd && cmd !== 'none') {
+        const badge = document.createElement('div');
+        badge.className = 'msg-badge';
+        badge.innerText = 'Komut: ' + cmd;
+        div.appendChild(badge);
+      }
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function speak(text) {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(text);
+        utter.lang = 'tr-TR';
+        window.speechSynthesis.speak(utter);
+      }
+    }
+
+    async function loadTarlalar() {
+      try {
+        const res = await fetch(`/tarlalar?ciftci_id=${CIFTCI_ID}`);
+        const data = await res.json();
+        const el = document.getElementById('tarlaListesi');
+        if (!data.tarlalar || data.tarlalar.length === 0) {
+          el.innerHTML = '<p style="color:#777; font-size:12px;">Henüz kayıtlı tarla yok.</p>';
+          return;
+        }
+        el.innerHTML = data.tarlalar.map(t => `<div class="tarla-item">🌾 <strong>${t.boyut}</strong> - ${t.ekin_turu}</div>`).join('');
+      } catch (e) {
+        document.getElementById('tarlaListesi').innerText = "Yüklenemedi.";
+      }
+    }
+
+    async function loadHava() {
+      try {
+        const res = await fetch('https://api.open-meteo.com/v1/forecast?latitude=37.16&longitude=38.79&current_weather=true');
+        const data = await res.json();
+        const c = data.current_weather;
+        document.getElementById('havaBilgi').innerHTML = `<strong>Hava Durumu:</strong> Şanlıurfa ${c.temperature}°C, Rüzgar: ${c.windspeed} km/s`;
+      } catch(e) {}
+    }
+
+    loadTarlalar();
+    loadHava();
+  </script>
+</body>
+</html>

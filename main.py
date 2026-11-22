@@ -15,6 +15,8 @@ from pathlib import Path
 from contextlib import contextmanager
 
 from fastapi import FastAPI, Query, HTTPException, Body
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 import requests
@@ -207,9 +209,17 @@ class SoruIstek(BaseModel):
     kullanici_mesaji: str = Field(..., description="Kullanıcının asistana sorduğu soru veya sesli metin")
     kullanici_id: Optional[str] = Field("misafir", description="Çiftçinin sistem ID numarası")
 
+# Statik dosyaları bağla
+STATIC_DIR = Path(__file__).resolve().parent / "static"
+if STATIC_DIR.exists():
+    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
 @app.get("/")
 def ana_sayfa():
-    """Servis sağlık ve hoş geldin mesajı."""
+    """Web arayüzünü açar, yoksa JSON bilgi döner."""
+    index_file = STATIC_DIR / "index.html"
+    if index_file.exists():
+        return FileResponse(index_file)
     return {
         "durum": "aktif",
         "mesaj": "Merhaba! Akıllı Tarım Sesli Asistanı Servisi Çalışıyor.",
