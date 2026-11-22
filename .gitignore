@@ -1,0 +1,38 @@
+# Environment Variables (Contains sensitive API keys)
+.env
+.env.local
+
+# Backups
+*.bak
+
+# SQLite Databases & Local Data
+*.db
+*.sqlite3
+
+# Audio Cache & Recordings
+*.mp3
+*.wav
+cevap_*.mp3
+
+# Python Bytecode & Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# OS Generated Files
+Thumbs.db
+Desktop.ini
+.DS_Store
